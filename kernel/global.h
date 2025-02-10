@@ -32,6 +32,7 @@
 #define DESC_TYPE_DATA 2
 #define DESC_TYPE_TSS  9
 
+/* 选择子结构：选择子索引值 + TI + RPL */
 /* KERNEL段 */
 #define SELECTOR_K_CODE    ((1<<3)+(TI_GDT<<2)+RPL0)
 #define SELECTOR_K_DATA    ((2<<3)+(TI_GDT<<2)+RPL0)

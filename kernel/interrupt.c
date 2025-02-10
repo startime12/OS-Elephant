@@ -4,6 +4,11 @@
 #include "print.h"
 #include "io.h"
 
+/* 可编程中断控制器 8259A IO控制端口 
+   偶地址端口（0x20 或 0xA0）：
+   用于写入初始化命令字（ICW）和操作命令字（OCW），也可以读取中断请求寄存器（IRR）和中断服务寄存器（ISR）。
+   奇地址端口（0x21 或 0xA1）：用
+   于写入初始化命令字（ICW）和操作命令字（OCW），也可以读取中断屏蔽寄存器（IMR）。 */
 #define PIC_M_CTRL 0x20         //主片
 #define PIC_M_DATA 0x21
 #define PIC_S_CTRL 0xA0         //从片
@@ -11,16 +16,17 @@
 
 #define IDT_DESC_CNT 0x30       //目前总共支持的中断数量
 
+/* popl %0：从堆栈中弹出一个值，并将其存储到指定的输出操作数EFLAG_VAR中。 */
 #define EFLAGS_IF       0x00000200      //eflags中的 IF 位为 1
 #define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; popl %0": "=g"(EFLAG_VAR))
 
-/*中断描述结构体*/
+/*中断描述结构体 中断门描述符*/
 struct gate_desc{
-        uint16_t        func_offset_low_word;
-        uint16_t        selector;        
-        uint8_t         dcount;                 //此项位双字计数字段，是门描述符第四字节，是固定值
-        uint8_t         attribute;
-        uint16_t        func_offset_high_word;
+        uint16_t        func_offset_low_word;   // 中断处理程序在目标端内的偏移量的15~0位
+        uint16_t        selector;               // 中断处理程序目标代码端描述符选择子
+        uint8_t         dcount;                 // 此项为双字计数字段，是门描述符第四字节，是固定值 0
+        uint8_t         attribute;              // P + DPL + S + TYPE
+        uint16_t        func_offset_high_word;  // 中断处理程序在目标端内的偏移量的31~16位
 };
 
 // 静态函数声明
@@ -64,14 +70,15 @@ static void pic_init(void){
         put_str("    pic init done\n");
 }
 
-/*创建中断门描述符*/
-//参数：中断描述符，属性，中断处理函数地址
-//功能：向中断描述符填充属性和地址
+/* 创建中断门描述符 */
+// 参数：中断描述符，属性，中断处理函数地址
+// 功能：向中断描述符填充属性和地址
 static void make_idt_desc(struct gate_desc* p_gdesc,uint8_t attr, intr_handler function){
+        /* bochs模拟的x86体系结构虚拟机是小端字节序：高对高，低对低 */
         p_gdesc->func_offset_low_word = (uint32_t)function & 0x0000FFFF;
-        p_gdesc->selector = SELECTOR_K_CODE;    //global.h里定义的
+        p_gdesc->selector = SELECTOR_K_CODE;    // global.h里定义的
         p_gdesc->dcount = 0;
-        p_gdesc->attribute = attr;
+        p_gdesc->attribute = attr;              // P + DPL + S + TYPE
         p_gdesc->func_offset_high_word = ((uint32_t)function & 0xFFFF0000) >> 16;
 }
 
@@ -209,7 +216,7 @@ void idt_init(){
         exception_init();       //初始化异常名称并注册通用处理程序
         pic_init();             //初始化 8259A
 
-        /*加载 idt*/
+        /*加载中断描述符表 idt*/
         uint64_t idt_operand = ((sizeof(idt) - 1) | ((uint64_t)(uint32_t)idt << 16));
         asm volatile("lidt %0"::"m"(idt_operand));
         put_str("idt_init done\n");
