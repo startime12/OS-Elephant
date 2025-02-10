@@ -6,8 +6,7 @@
 #include "interrupt.h"
 #include "print.h"
 #include "debug.h"
-
-#define PG_SIZE 4096
+#include "process.h"
 
 struct task_struct* main_thread; // 主线程 PCB
 struct list thread_ready_list; // 就绪队列
@@ -60,7 +59,7 @@ void init_thread(struct task_struct* pthread, char* name, int prio) {
     // self_kstack 是线程自己在内核态下使用的栈顶地址
     pthread->self_kstack = (uint32_t*)((uint32_t)pthread + PG_SIZE);
     pthread->priority = prio;
-    pthread->priority = prio;
+    pthread->ticks = prio;
     pthread->elapsed_ticks = 0;
     pthread->pgdir = NULL;
     pthread->stack_magic = 0x19870916; // 自定义魔数
@@ -121,6 +120,10 @@ void schedule(void) {
     thread_tag = list_pop(&thread_ready_list);
     struct task_struct* next = elem2entry(struct task_struct, general_tag, thread_tag);
     next->status = TASK_RUNNING;
+
+    /* 激活任务页表等 */
+    process_activate(next);
+
     switch_to(cur, next);
 }
 
@@ -132,4 +135,33 @@ void thread_init(void) {
     // 将当前 main 函数创建为线程
     make_main_thread();
     put_str("thread_init donw\n");
+}
+
+/* 当前线程将自己阻塞，标记状态为status */
+// 阻塞线程自己调用，阻塞自己
+void thread_block(enum task_status stat){
+    /* stat取值为TASK_BLOCKED、TASK_WATING、TASK_HANGING时不会被调度 */
+    ASSERT((stat==TASK_BLOCKED) || (stat==TASK_WAITING) || (stat==TASK_HANGING));
+    enum intr_status old_status=intr_disable();
+    struct task_struct* cur_thread=running_thread();
+    cur_thread->status=stat;   // 置其状态为stat
+    schedule();
+    /* 待当前线程被解除阻塞状态后才能继续下面的intr_set_status */
+    intr_set_status(old_status);
+}
+
+/* 解除pthread的阻塞状态 */
+// 由当前运行的线程调用，唤醒阻塞线程
+void thread_unblock(struct task_struct* pthread){
+    enum intr_status old_status=intr_disable();
+    ASSERT((pthread->status==TASK_BLOCKED) || (pthread->status==TASK_WAITING) || (pthread->status==TASK_HANGING));
+    if (pthread->status!=TASK_READY){
+        ASSERT(!elem_find(&thread_ready_list,&pthread->general_tag));
+        if (elem_find(&thread_ready_list,&pthread->general_tag)){
+            PANIC("thread_unblock:blocked thread in ready_list\n");   // 想要解除阻塞状态的thread已经在ready_list中了，有问题
+        }
+        list_push(&thread_ready_list,&pthread->general_tag);   // 放到队列最前面，使其尽快得到调度
+        pthread->status=TASK_READY;
+    }
+    intr_set_status(old_status);
 }

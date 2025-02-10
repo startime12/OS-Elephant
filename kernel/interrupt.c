@@ -9,7 +9,7 @@
 #define PIC_S_CTRL 0xA0         //从片
 #define PIC_S_DATA 0xA1
 
-#define IDT_DESC_CNT 0x21       //目前总共支持的中断数量
+#define IDT_DESC_CNT 0x30       //目前总共支持的中断数量
 
 #define EFLAGS_IF       0x00000200      //eflags中的 IF 位为 1
 #define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; popl %0": "=g"(EFLAG_VAR))
@@ -50,8 +50,16 @@ static void pic_init(void){
 
         //打开主片上的 IR0 也就是目前只接受时钟产生的中断
     	//eflags 里的 IF 位对所有外部中断有效，但不能屏蔽某个外设的中断了
-        outb (PIC_M_DATA, 0xfe);
-        outb (PIC_S_DATA, 0xff);
+        /* outb (PIC_M_DATA, 0xfe);
+        outb (PIC_S_DATA, 0xff); */
+
+        //打开主片上的 IR0 也就是目前只接受键盘产生的中断
+	/* outb (PIC_M_DATA, 0xfd);
+	outb (PIC_S_DATA, 0xff); */
+
+        //打开主片上的 IR0\IR1 接受时钟\键盘产生的中断
+	outb (PIC_M_DATA, 0xfc);
+	outb (PIC_S_DATA, 0xff);
 
         put_str("    pic init done\n");
 }
@@ -72,38 +80,48 @@ static void idt_desc_init(void){
         int i;
         for(i = 0; i < IDT_DESC_CNT; i++){
                 make_idt_desc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]);        //IDT_DESC_DPL0在global.h定义的
-
         }
         put_str("       idt_desc_init done\n");
 }
 
 /*通用的中断处理请求*/
 static void general_intr_handler(uint8_t vec_nr){
-	if(vec_nr == 0x27 || vec_nr == 0x2f){
-		// IRQ7 IRQ15 会产生伪中断，无需处理
-		// 0x2f 是从片 8259A 上的最后一个 IRQ 引脚，保留项
-		return ;
-	}
-	// 将光标置为屏幕左上角, 清理一块区域
-	set_cursor(0);	//设置光标位置
-	int cursor_pos = 0;
-	while(cursor_pos < 320) {
-		put_char(' ');
-		cursor_pos++;
-	}
-	// 将光标重新置为屏幕左上角
-	set_cursor(0);
-	put_str("!!!!! exception message begin !!!!!\n");
-	set_cursor(88); // 从第 2 行第 8 个字符开始打印
-	put_str(intr_name[vec_nr]);
-	if(vec_nr == 14) { // 若为 Pagefault, 将缺失的地址打印出来并悬停
-		int page_fault_vaddr = 0;
-		// cr2 存放造成 page_fault 的地址
-		asm("movl %%cr2, %0" : "=r" (page_fault_vaddr));
-		put_str("\npage fault addr is "); put_int(page_fault_vaddr);
-	}
+	// if(vec_nr == 0x27 || vec_nr == 0x2f){
+	// 	// IRQ7 IRQ15 会产生伪中断，无需处理
+	// 	// 0x2f 是从片 8259A 上的最后一个 IRQ 引脚，保留项
+	// 	return ;
+	// }
+	// // 将光标置为屏幕左上角, 清理一块区域
+	// set_cursor(0);	//设置光标位置
+	// int cursor_pos = 0;
+	// while(cursor_pos < 320) {
+	// 	put_char(' ');
+	// 	cursor_pos++;
+	// }
+	// // 将光标重新置为屏幕左上角
+	// set_cursor(0);
+	// put_str("!!!!! exception message begin !!!!!\n");
+	// set_cursor(88); // 从第 2 行第 8 个字符开始打印
+	// put_str(intr_name[vec_nr]);
+	// if(vec_nr == 14) { // 若为 Pagefault, 将缺失的地址打印出来并悬停
+	// 	int page_fault_vaddr = 0;
+	// 	// cr2 存放造成 page_fault 的地址
+	// 	asm("movl %%cr2, %0" : "=r" (page_fault_vaddr));
+	// 	put_str("\npage fault addr is "); put_int(page_fault_vaddr);
+	// }
 
-	put_str("\n!!!!! exception message end !!!!!\n");
+	// put_str("\n!!!!! exception message end !!!!!\n");
+
+        if(vec_nr == 0x27 || vec_nr == 0x2f){
+                // IRQ7 IRQ15 会产生伪中断，无需处理
+                // 0x2f 是从片 8259A 上的最后一个 IRQ 引脚，保留项
+                return ;
+        }
+        put_str("int vector : 0x");
+        put_int(vec_nr);
+        put_char(' ');
+        put_str(intr_name[vec_nr]);
+        put_char('\n');
 
 	// 已经进入中断处理程序就表示已经处在关中断情况下
 	// 不会出现线程调度的情况, 故下面的死循环不会再被中断
@@ -174,14 +192,14 @@ enum intr_status intr_disable(){
 
 /*将中断状态设置位 status*/
 enum intr_status intr_set_status(enum intr_status status){
-        return status & INTR_ON ? intr_enable():intr_disable();
+        return (status == INTR_ON) ? intr_enable() : intr_disable();
 }
 
 /*获取当前中断状态*/
 enum intr_status intr_get_status(){
         uint32_t eflags = 0;
         GET_EFLAGS(eflags);
-        return (EFLAGS_IF & eflags)?INTR_ON:INTR_OFF;
+        return (EFLAGS_IF & eflags) ? INTR_ON : INTR_OFF;
 }
 
 /*完成有关中断的所有初始化工作*/
@@ -192,7 +210,7 @@ void idt_init(){
         pic_init();             //初始化 8259A
 
         /*加载 idt*/
-        uint64_t idt_operand = ((sizeof(idt) - 1) | ((uint64_t)((uint32_t)idt << 16)));
+        uint64_t idt_operand = ((sizeof(idt) - 1) | ((uint64_t)(uint32_t)idt << 16));
         asm volatile("lidt %0"::"m"(idt_operand));
         put_str("idt_init done\n");
 }

@@ -119,12 +119,12 @@ put_char:
         mov bx, 1920                    ;将光标重置到24行行首
 
 ;-------------------------------------------
-; Function: put_str
+; Function: set_cursor
 ;
 ; Description: 设置光标位置
 ; Param：设置光标位置
 ;------------------------------------------
-global set_cursor:
+global set_cursor
 set_cursor:
         ;先设置高8位
         mov dx, 0x03d4                  ;索引寄存器

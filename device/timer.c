@@ -55,5 +55,5 @@ void timer_init() {
 	frequency_set(CONTRER0_PORT, COUNTER0_NO, READ_WRITE_LATCH, COUNTER_MODE, COUNTER0_VALUE);
 	// register timer interrupt handler
 	register_handler(0x20, intr_timer_handler);
-	put_str("timer_init donw\n");
+	put_str("timer_init done\n");
 }
