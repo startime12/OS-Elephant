@@ -9,11 +9,11 @@ void panic_spin(char* filename, int line, const char* func, const char* conditio
 #define PANIC(...) panic_spin(__FILE__,__LINE__,__func__,__VA_ARGS__)
 
 #ifdef NDEBUG                   //不用调试的时候，在程序里定义 NDEBUG 即可删除这里的处理逻辑
-        #define ASSERT(CONITION)((void)0)
+    #define ASSERT(CONITION)((void)0)
 #else
 #define ASSERT(CONITION)        \
-        if(CONITION){}else{     \
-        PANIC(#CONITION);}      //#号让宏的参数转换成 字符串 常量
+    if(CONITION){}else{     \
+    PANIC(#CONITION);}      //#号让宏的参数转换成 字符串 常量
 
 #endif  /*__NDEBUF*/
 #endif  /*__KERNEL_DEBUG_H*/

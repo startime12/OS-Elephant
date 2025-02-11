@@ -7,8 +7,8 @@ void idt_init();
 
 // 定义中断的两种状态
 enum intr_status{
-        INTR_OFF,       //值为 0，表示关闭中断
-        INTR_ON         //值为 1，表示开启中断
+   INTR_OFF,       //值为 0，表示关闭中断
+   INTR_ON         //值为 1，表示开启中断
 };
 
 enum intr_status intr_disable();

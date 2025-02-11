@@ -1,4 +1,4 @@
-主引导程序
+;主引导程序
 ;-----------------------------------------------------
 %include "boot.inc"
 SECTION MBR vstart=0x7c00                       ;告诉编译器，起始地址是0x7c00
@@ -42,20 +42,19 @@ SECTION MBR vstart=0x7c00                       ;告诉编译器，起始地址�
         mov byte [gs:0x04], 'M'
         mov byte [gs:0x05], 0x12
 
-       mov byte [gs:0x06], 'B'
+        mov byte [gs:0x06], 'B'
         mov byte [gs:0x07], 0x12
 
         mov byte [gs:0x08], 'R'
         mov byte [gs:0x09], 0x12
 ;--------------------------------------------------------------------------
 
-
         mov eax ,LOADER_START_SECTOR    ;起始扇区lba地址
         mov bx  ,LOADER_BASE_ADDR       ;写入的地址
         mov cx  ,4                      ;待读入的扇区数
-        call rd_disk_m_16               ;以下读取程序的起始部分
+        call rd_disk_m_16               ;以下读取程序的起始部分,从第2扇区开始读取4个扇区，写入对应地址
 
-        jmp LOADER_BASE_ADDR + 0x300			;跳转到Loader
+        jmp LOADER_BASE_ADDR + 0x300	;跨过Loader前面的数据部分，跳转到loader_start
 
 ;--------------------------------------------------------------------------
 ;功能：读取eax=LBA扇区号
@@ -84,7 +83,7 @@ rd_disk_m_16:
         out dx ,al
 
         ;LBA 24～16位写入端口0x1f5
-               shr eax ,cl
+        shr eax ,cl
         mov dx ,0x1f5
         out dx ,al
 
