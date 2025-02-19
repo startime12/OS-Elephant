@@ -1118,7 +1118,7 @@ LOAD build/assert.o
  .debug_abbrev  0x0000000000003429      0x1ed build/exec.o
  .debug_abbrev  0x0000000000003616       0x99 build/assert.o
 
-.debug_line     0x0000000000000000     0x51ab
+.debug_line     0x0000000000000000     0x51a9
  *(.debug_line .debug_line.* .debug_line_end)
  .debug_line    0x0000000000000000      0x11c build/main.o
  .debug_line    0x000000000000011c       0xa8 build/init.o
@@ -1147,12 +1147,12 @@ LOAD build/assert.o
  .debug_line    0x0000000000002c23      0xbd5 build/fs.o
  .debug_line    0x00000000000037f8      0x2d9 build/inode.o
  .debug_line    0x0000000000003ad1      0x5d0 build/dir.o
- .debug_line    0x00000000000040a1      0x6bc build/file.o
- .debug_line    0x000000000000475d      0x23f build/fork.o
- .debug_line    0x000000000000499c      0x280 build/shell.o
- .debug_line    0x0000000000004c1c      0x359 build/buildin_cmd.o
- .debug_line    0x0000000000004f75      0x1d3 build/exec.o
- .debug_line    0x0000000000005148       0x63 build/assert.o
+ .debug_line    0x00000000000040a1      0x6ba build/file.o
+ .debug_line    0x000000000000475b      0x23f build/fork.o
+ .debug_line    0x000000000000499a      0x280 build/shell.o
+ .debug_line    0x0000000000004c1a      0x359 build/buildin_cmd.o
+ .debug_line    0x0000000000004f73      0x1d3 build/exec.o
+ .debug_line    0x0000000000005146       0x63 build/assert.o
 
 .debug_frame    0x0000000000000000        0x0
  *(.debug_frame)
