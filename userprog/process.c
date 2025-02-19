@@ -100,7 +100,7 @@ void create_user_vaddr_bitmap(struct task_struct* user_prog){
 /* 创建用户进程 */
 void process_execute(void* filename,char* name){
     /* pcb内核的数据结构,由内核来维护进程信息,因此要在内核内存池中申请 */
-    struct task_struct* thread=get_kernel_pages(1);
+    struct task_struct* thread = get_kernel_pages(1);
     init_thread(thread,name,default_prio);
     create_user_vaddr_bitmap(thread);
     thread_create(thread,start_process,filename);

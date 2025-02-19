@@ -38,9 +38,21 @@ struct mem_block_desc {
 #define DESC_CNT 7              // 内存块描述符个数
 
 extern struct pool kernel_pool, user_pool;
+// struct arena
+// {
+//     struct mem_block_desc* desc;        // 此arena关联的mem_block_desc
+//     /* large为true时，cnt表示的是页框数。否则cnt表示空闲mem_block数量。 */
+//     uint32_t cnt;
+//     bool large;
+// };
+// struct arena* block2arena(struct mem_block* b);
+
+uint32_t* pte_ptr(uint32_t vaddr);
+uint32_t* pde_ptr(uint32_t vaddr);
 void* get_kernel_pages(uint32_t pg_cnt);
 void* get_user_pages(uint32_t pg_cnt);
 void* get_a_page(enum pool_flags pf,uint32_t vaddr);
+void* get_a_page_without_opvaddrbitmap(enum pool_flags pf, uint32_t vaddr);
 uint32_t addr_v2p(uint32_t vaddr);
 void block_desc_init(struct mem_block_desc* desc_array);
 void* sys_malloc(uint32_t size);

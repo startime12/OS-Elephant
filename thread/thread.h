@@ -76,7 +76,6 @@ struct thread_stack {
     void* func_arg;                     // 由 kernel_thread 所调用的函数所需的参数
 };
 
-
 // 进程或线程的 PCB
 struct task_struct {
     uint32_t* self_kstack;              // 各内核线程都用自己的内核栈
@@ -96,6 +95,7 @@ struct task_struct {
     struct virtual_addr userprog_vaddr; // 用户进程的虚拟地址池
     struct mem_block_desc u_block_desc[DESC_CNT];// 用户内存块描述符数组
     uint32_t cwd_inode_nr;              // 进程所在工作目录的inode编号
+    int16_t parent_pid;                 // 父进程的pid
     uint32_t stack_magic;               // 栈的边界标记, 用于检测栈的溢出
 };
 
@@ -111,4 +111,6 @@ void thread_yield(void);
 void thread_block(enum task_status stat);
 void thread_unblock(struct task_struct* pthread);
 void thread_init(void);
+pid_t fork_pid(void);
+void sys_ps(void);
 #endif

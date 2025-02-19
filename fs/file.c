@@ -10,6 +10,7 @@
 #include "string.h"
 #include "interrupt.h"
 #include "debug.h"
+#include "memory.h"
 
 // 文件表
 struct file file_table[MAX_FILE_OPEN];
@@ -416,7 +417,7 @@ int32_t file_write(struct file* file, const void* buf, uint32_t count) {
 int32_t file_read(struct file* file, void* buf, uint32_t count) {
     uint8_t* buf_dst = (uint8_t*)buf;
     uint32_t size = count, size_left = size;
-
+    
     // 若要读取的字节数超过了文件可读的剩余量, 就用剩余量作为待读取的字节数
     if ((file->fd_pos + count) > file->fd_inode->i_size) {
         size = file->fd_inode->i_size - file->fd_pos;
@@ -427,6 +428,12 @@ int32_t file_read(struct file* file, void* buf, uint32_t count) {
     }
 
     uint8_t* io_buf = sys_malloc(BLOCK_SIZE);
+    // struct mem_block* b = io_buf;
+    // struct arena* a = block2arena(b); // 把 mem_block 转换成 arena, 获取元信息
+    // printk("arena1: %d\n", a->large);
+    // printk("arena1 io_buf: %x\n", io_buf);
+    // printk("arena1 a: %x\n", a);
+
     if (io_buf == NULL) {
         printk("file_read: sys_malloc for io_buf failed\n");
     }
@@ -493,9 +500,21 @@ int32_t file_read(struct file* file, void* buf, uint32_t count) {
         sec_left_bytes = BLOCK_SIZE - sec_off_bytes;
         chunk_size = size_left < sec_left_bytes ? size_left : sec_left_bytes; // 待读入的数据大小
 
-        memset(io_buf, 0, BLOCK_SIZE);                                  // 不清空也可以
+        memset(io_buf, 0, BLOCK_SIZE);         // 不清空也可以
         ide_read(cur_part->my_disk, sec_lba, io_buf, 1);
         memcpy(buf_dst, io_buf+sec_off_bytes, chunk_size);
+    // b = io_buf;
+    // a = block2arena(b); // 把 mem_block 转换成 arena, 获取元信息
+    // if(a->large < 0){
+    // printk("arena2 io_buf: %x\n", io_buf);
+    // printk("arena2 a: %x\n", a);
+    // printk("arena2: %d\n", a->large);
+    // printk("size_left: %d\n", size_left);
+    // printk("sec_left_bytes: %d\n", sec_left_bytes);
+    // printk("chunk_size: %d\n", chunk_size);
+    // printk("sec_off_bytes: %d\n", sec_off_bytes);
+    // return;
+    //}
 
         buf_dst += chunk_size;
         file->fd_pos += chunk_size;

@@ -69,7 +69,8 @@ static void* vaddr_get(enum pool_flags pf, uint32_t pg_cnt){
 }
 
 // 得到虚拟地址 vaddr 对应的 pte 指针
-static uint32_t* pte_ptr(uint32_t vaddr){
+// static // 由于exec.c中的segment_load需要使用，故取消static
+uint32_t* pte_ptr(uint32_t vaddr){
     // 先访问到页表自己
     // 再用页目录项 pde（页目录内页表的索引）作为pte的索引访问到页表
     // 再用pte的索引作为页内偏移
@@ -81,7 +82,8 @@ static uint32_t* pte_ptr(uint32_t vaddr){
 }
 
 // 得到虚拟地址vaddr对应的pde的指针
-static uint32_t* pde_ptr(uint32_t vaddr){
+// static // 由于exec.c中的segment_load需要使用，故取消static
+uint32_t* pde_ptr(uint32_t vaddr){
     //0xfffff 用来访问到页表本身所在的地址
     //前10位是1023，是页目录表的物理地址
     //中10位是1023，索引到的还是页目录表的物理地址
@@ -193,7 +195,7 @@ void* get_user_pages(uint32_t pg_cnt){
     return vaddr;
 }
 
-/* 将地址vaddr与pf池中的物理地址关联,仅支持一页空间分配 */
+/* 将地址vaddr与pf池中的物理地址关联,仅支持一页空间分配（同时修改虚拟地址池） */
 void* get_a_page(enum pool_flags pf,uint32_t vaddr){
     struct pool* mem_pool= pf & PF_KERNEL ? &kernel_pool : &user_pool;
     lock_acquire(&mem_pool->lock);
@@ -222,6 +224,20 @@ void* get_a_page(enum pool_flags pf,uint32_t vaddr){
         return NULL;
     }
     page_table_add((void*)vaddr,page_phyaddr);
+    lock_release(&mem_pool->lock);
+    return (void*)vaddr;
+}
+
+/* 安装1页大小的vaddr,专门针对fork时虚拟地址位图无须操作的情况（不修改虚拟地址池） */
+void* get_a_page_without_opvaddrbitmap(enum pool_flags pf, uint32_t vaddr) {
+    struct pool* mem_pool = pf & PF_KERNEL ? &kernel_pool : &user_pool;
+    lock_acquire(&mem_pool->lock);
+    void* page_phyaddr = palloc(mem_pool);
+    if (page_phyaddr == NULL) {
+        lock_release(&mem_pool->lock);
+        return NULL;
+    }
+    page_table_add((void*)vaddr, page_phyaddr); 
     lock_release(&mem_pool->lock);
     return (void*)vaddr;
 }
@@ -312,6 +328,16 @@ static void mem_pool_init(uint32_t all_mem) {
     put_str("    mem_pool_init done \n");
 }
 
+// 内存管理部分初始化入口
+void mem_init(){
+    put_str("mem_init start\n");
+    uint32_t mem_bytes_total = (*(uint32_t*)(0xb00));
+    mem_pool_init(mem_bytes_total);
+    // 初始化mem_block_desc数组descs，为malloc做准备
+    block_desc_init(k_block_descs);
+    put_str("mem_init done\n");
+}
+
 /* 为malloc做准备 */
 void block_desc_init(struct mem_block_desc* desc_array) {
     uint16_t desc_idx, block_size = 16;
@@ -332,7 +358,8 @@ static struct mem_block* arena2block(struct arena* a, uint32_t idx) {
 }
 
 /* 返回内存块b所在的arena地址 */
-static struct arena* block2arena(struct mem_block* b) {
+// static
+struct arena* block2arena(struct mem_block* b) {
     return (struct arena*)((uint32_t)b & 0xfffff000);
 }
 
@@ -554,14 +581,4 @@ void sys_free(void* ptr) {
         }
         lock_release(&mem_pool->lock);
     }
-}
-
-// 内存管理部分初始化入口
-void mem_init(){
-    put_str("mem_init start\n");
-    uint32_t mem_bytes_total = (*(uint32_t*)(0xb00));
-    mem_pool_init(mem_bytes_total);
-    // 初始化mem_block_desc数组descs，为malloc做准备
-    block_desc_init(k_block_descs);
-    put_str("mem_init done\n");
 }
